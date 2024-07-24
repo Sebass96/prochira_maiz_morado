@@ -1,0 +1,862 @@
+---
+title: "ESTIMULANTES EN LA GERMINACIÓN Y BIOMETRÍA INICIAL DE DOS VARIEDADES DE MAÍZ MORADO (_Zea mays_ L.)"
+format:
+  html:
+    toc: true
+    toc-location: left
+    number-sections: true
+    self-contained: true
+    output-file: "ESM_1"
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+  echo: true
+---
+
+# Setup
+
+Instalar version en desarrollo.
+
+```{r}
+#| eval: false
+
+if (!require("remotes"))
+  install.packages("remotes")
+remotes::install_github("flavjack/inti")
+```
+
+
+```{r}
+#| label:  setup
+
+library(emmeans)
+library(corrplot)
+library(multcomp)
+source('https://inkaverse.com/setup.r')
+
+session_info()
+```
+
+# Refrencias
+
+- (PCA) https://www.r-bloggers.com/2017/07/pca-course-using-factominer/
+- (PCA) https://www.youtube.com/watch?v=Uhw-1NilmAk&ab_channel=Fran%C3%A7oisHusson
+- (HCPC) https://youtu.be/EJqYTDTJJug
+
+# Import data
+
+> https://docs.google.com/spreadsheets/d/1E_l9uV3MT1qlJuVtWK66NgevqPH6fVJCekqNhS_VGm0/edit?gid=1893553741#gid=1893553741
+
+```{r}
+url <- "https://docs.google.com/spreadsheets/d/1E_l9uV3MT1qlJuVtWK66NgevqPH6fVJCekqNhS_VGm0/edit?gid=1893553741#gid=1893553741"
+
+gs <- url %>% 
+  as_sheets_id()
+
+imbibition <- gs %>% 
+  range_read("imbibition") %>% 
+  rename_with(~ tolower(.)) %>% 
+  mutate(time = tiempo, .after = tiempo) %>% 
+  mutate(across(1:tiempo, ~ as.factor(.)))
+
+str(imbibition)
+
+germination <- gs %>% 
+  range_read("germination") %>% 
+  rename_with(~ tolower(.)) %>% 
+  mutate(across(1:variedad, ~ as.factor(.)))
+
+str(germination)
+
+plantula <- gs %>% 
+  range_read("plantula") %>% 
+  rename_with(~ tolower(.)) %>% 
+  mutate(across(1:variedad, ~ as.factor(.)))
+
+str(plantula)
+```
+
+# Data summary
+
+```{r}
+sm <- imbibition %>% 
+  group_by(tratamiento, variedad, tiempo) %>% 
+  summarise(across(peso, ~ sum(!is.na(.))))
+
+sm
+
+sm <- germination %>% 
+  group_by(tratamiento, variedad) %>% 
+  summarise(across(pg:ig, ~ sum(!is.na(.))))
+
+sm
+
+sm <- plantula %>% 
+  group_by(tratamiento, variedad) %>% 
+  summarise(across(where(is.numeric), ~ sum(!is.na(.))))
+
+sm
+```
+
+# Objetivos
+
+- Mostrar  el efecto de los abonos orgánicos compost y biol en la calidad del fruto de mango en madurez fisiológica
+
+- Mostrar  el efecto de los abonos orgánicos compost y biol en la calidad del fruto de mango en madurez comercial
+
+## Objetivo Específico 1
+
+> Mostrar  el efecto de los abonos orgánicos compost y biol en la calidad del fruto de mango en madurez fisiológica
+
+### Firmeza de fruto (ffmf)
+
+```{r}
+trait <- "ffmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1a <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "compost"
+           , ylab = "Firmeza del fruto (Kgf)"
+           , ylimits = c(0, 16, 4)
+           )
+
+p1a
+```
+
+## Color interno del fruto (cifmf)
+
+> Excluir esta variable como cuantitativo
+
+```{r}
+trait <- "cifmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1b <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "Color interno del fruto"
+           , ylimits = c(0, 3, 1)
+           )
+
+p1b
+```
+
+## Potencia de hidrogeno del fruto (phfmf)
+
+```{r}
+trait <- "phfmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1c <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "pH del Fruto"
+           , ylimits = c(0, 4, 1)
+           )
+
+p1c
+```
+
+## Solidos solubles del fruto (ssfmf)
+
+```{r}
+trait <- "ssfmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1d <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "Solidos solubles del fruto (brix^{o})"
+           , ylimits = c(0, 12, 2)
+           )
+
+p1d
+```
+
+## Acidez titulable del fruto (atfmf)
+
+```{r}
+trait <- "atfmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1e <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "compost"
+           , ylab = "Acidez titulable del fruto ('%')"
+           , ylimits = c(0, 2, 1)
+           )
+
+p1e
+```
+
+## Materia seca del fruto (msfmf)
+
+```{r}
+trait <- "msfmf"
+fb <- fisio
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p1f <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "compost"
+           , ylab = "Materia seca del fruto ('%')"
+           , ylimits = c(0, 25, 5)
+           )
+
+p1f
+```
+
+## Figure 1
+
+```{r}
+legend <- cowplot::get_plot_component(p1a, 'guide-box-top', return_all = TRUE)
+
+p1 <- list(p1a + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p1b + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p1c + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p1d + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p1e + theme(legend.position="none")
+           , p1f + theme(legend.position="none")
+           ) %>% 
+  plot_grid(plotlist = ., ncol = 2
+            , labels = "auto"
+            ) 
+
+plot_grid(legend, p1, ncol = 1, align = 'v', rel_heights = c(0.05, 1)) %>% 
+  ggsave2(plot = ., "files/Fig-1.jpg"
+         , units = "cm"
+         , width = 25
+         , height = 22
+         )
+
+knitr::include_graphics("files/Fig-1.jpg")
+```
+
+## Multivariate
+
+```{r}
+mv <- fisio %>% 
+  group_by(composts, biol) %>% 
+  summarise(across(where(is.numeric), ~ mean(., na.rm = T))) %>%   
+  unite("treat", composts:biol, sep = "-") %>% 
+  rename(Treat = treat)
+  
+pca <- mv %>% 
+  PCA(scale.unit = T, quali.sup = 1, graph = F) 
+
+# summary
+
+summary(pca, nbelements = Inf, nb.dec = 2)
+
+
+f2a <- plot.PCA(x = pca, choix = "var"
+                , cex=0.8
+                )
+
+f2b <- plot.PCA(x = pca, choix = "ind"
+                , habillage = 1
+                , invisible = c("ind")
+                , cex=0.8
+                , ylim = c(-3,3)
+                ) 
+
+```
+
+## Figure 2
+
+```{r}
+list(f2a, f2b) %>% 
+  plot_grid(plotlist = ., ncol = 2, nrow = 1
+            , labels = "auto"
+            , rel_widths = c(1, 1.5)
+            ) %>% 
+  ggsave2(plot = ., "files/Fig-2.jpg", units = "cm"
+         , width = 25
+         , height = 10
+         )
+
+knitr::include_graphics("files/Fig-2.jpg")
+```
+
+# Correlation
+
+```{r}
+cor <- mv %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  cor(., method ="pearson")
+
+cor %>% kable()
+
+sf1 <- ~ {
+  
+  corrplot::corrplot(cor, method = "number", type = "upper")
+}
+
+list(sf1) %>% 
+  plot_grid(plotlist = .) %>% 
+  ggsave2(plot = ., "files/FigS1.jpg", units = "cm"
+         , width = 15, height = 15)
+
+knitr::include_graphics("files/FigS1.jpg")
+```
+
+### Objetivo Específico 2
+
+> Mostrar  el efecto de los abonos orgánicos compost y biol en la calidad del fruto de mango en madurez comercial
+
+# Porcentaje deshidratación del fruto (pdfmc)
+
+```{r}
+trait <- "pdfmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2a <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "Deshidratación del fruto ('%')"
+           , ylimits = c(0, 8, 2)
+           )
+
+p2a
+```
+
+# Solidos solubles del fruto (ssfmc)
+
+```{r}
+trait <- "ssfmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2b <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "Solidos solubles del fruto (brix^{o})"
+           , ylimits = c(0, 18, 3)
+           )
+
+p2b
+```
+
+# Acidez titulable del fruto (atfmc)
+
+```{r}
+trait <- "atfmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2c <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "Acidez titulable del fruto ('%')"
+           , ylimits = c(0, 0.8, 0.2)
+           )
+
+p2c
+```
+
+# Potencial de hidrógeno del fruto (phfmc)
+
+```{r}
+trait <- "phfmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2d <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , ylab = "pH del Fruto"
+           , ylimits = c(0, 6, 2)
+           )
+
+p2d
+```
+
+# Color interno del fruto (cifmc)
+
+```{r}
+trait <- "cifmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2e <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "compost"
+           , ylab = "Color interno del fruto"
+           , ylimits = c(0, 5, 1)
+           )
+
+p2e
+```
+
+# Firmeza del fruto (ffmc)
+
+```{r}
+trait <- "ffmc"
+cs <- consumo
+
+lmm <- paste({{trait}}, "~ 1 + (1|repetition) + composts*biol") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ composts*biol") %>% as.formula()
+
+rmout <- cs %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+rmout$diagplot
+
+rmout$outliers
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model)
+
+mc <- emmeans(model, ~ biol|composts) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group")
+
+mc %>% kable()
+
+p2f <- mc %>% 
+  plot_smr(x = "composts"
+           , y = "emmean"
+           , group = "biol"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "compost"
+           , ylab = "Firmeza del fruto (Kgf)"
+           , ylimits = c(0, 6, 2)
+           )
+
+p2f
+```
+
+## Figure 3
+
+```{r}
+legend <- cowplot::get_plot_component(p2a, 'guide-box-top', return_all = TRUE)
+
+p2 <- list(p2a + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p2b + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p2c + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p2d + labs(x = NULL) + theme(legend.position="none"
+                                        , axis.title.x=element_blank()
+                                        , axis.text.x=element_blank()
+                                        , axis.ticks.x=element_blank())
+           , p2e + theme(legend.position="none")
+           , p2f + theme(legend.position="none")
+           ) %>% 
+  plot_grid(plotlist = ., ncol = 2
+            , labels = "auto"
+            ) 
+
+plot_grid(legend, p2, ncol = 1, align = 'v', rel_heights = c(0.05, 1)) %>% 
+  ggsave2(plot = ., "files/Fig-3.jpg"
+         , units = "cm"
+         , width = 26
+         , height = 24
+         )
+
+knitr::include_graphics("files/Fig-3.jpg")
+```
+
+## Multivariate
+
+```{r}
+mv <- consumo %>% 
+  group_by(composts, biol) %>% 
+  summarise(across(where(is.numeric), ~ mean(., na.rm = T))) %>%   
+  unite("treat", composts:biol, sep = "-") %>% 
+  rename(Treat = treat)
+  
+pca <- mv %>% 
+  PCA(scale.unit = T, quali.sup = 1, graph = F) 
+
+# summary
+
+summary(pca, nbelements = Inf, nb.dec = 2)
+
+
+f4a <- plot.PCA(x = pca, choix = "var"
+                , cex=0.8
+                )
+
+f4b <- plot.PCA(x = pca, choix = "ind"
+                , habillage = 1
+                , invisible = c("ind")
+                , cex=0.8
+                , ylim = c(-3,3)
+                ) 
+
+```
+
+## Figure 4
+
+```{r}
+list(f4a, f4b) %>% 
+  plot_grid(plotlist = ., ncol = 2, nrow = 1
+            , labels = "auto"
+            , rel_widths = c(1, 1.5)
+            ) %>% 
+  ggsave2(plot = ., "files/Fig-4.jpg", units = "cm"
+         , width = 25
+         , height = 10
+         )
+
+knitr::include_graphics("files/Fig-4.jpg")
+```
+
+# Correlation
+
+```{r}
+cor <- mv %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  cor(., method ="pearson")
+
+cor %>% kable()
+
+sf2 <- ~ {
+  
+  corrplot::corrplot(cor, method = "number", type = "upper")
+}
+
+list(sf2) %>% 
+  plot_grid(plotlist = .) %>% 
+  ggsave2(plot = ., "files/FigS2.jpg", units = "cm"
+         , width = 15, height = 15)
+
+knitr::include_graphics("files/FigS2.jpg")
+```
+
