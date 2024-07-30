@@ -4,6 +4,7 @@ format:
   html:
     toc: true
     toc-location: left
+    toc-expand: 4
     number-sections: true
     self-contained: true
     output-file: "ESM_1"
@@ -35,6 +36,7 @@ library(corrplot)
 library(multcomp)
 source('https://inkaverse.com/setup.r')
 
+cat("Project: ", getwd())
 session_info()
 ```
 
@@ -58,23 +60,53 @@ imbibition <- gs %>%
   range_read("imbibition") %>% 
   rename_with(~ tolower(.)) %>% 
   mutate(time = tiempo, .after = tiempo) %>% 
-  mutate(across(1:tiempo, ~ as.factor(.)))
+  mutate(variedad = case_when(
+    variedad %in% c("criollo") ~ "Creole"
+    , variedad %in% c("Hibrido") ~ "Hybrid"
+  )) %>% 
+  mutate(across(1:tiempo, ~ as.factor(.))) 
 
 str(imbibition)
 
 germination <- gs %>% 
   range_read("germination") %>% 
   rename_with(~ tolower(.)) %>% 
-  mutate(across(1:variedad, ~ as.factor(.)))
+  mutate(variedad = case_when(
+    variedad %in% c("criollo") ~ "Creole"
+    , variedad %in% c("Hibrido") ~ "Hybrid"
+  )) %>% 
+  mutate(trat = case_when(
+    tratamiento %in% "Agua Destilada" ~ "T0"
+    , tratamiento %in% "Algas Marinas 1 L/cil" ~ "T1"
+    , tratamiento %in% "Algas Marinas 1,5 L/cil" ~ "T2"
+    , tratamiento %in% "Azufre 100 gr.200 L-1" ~ "T3"
+    , tratamiento %in% "Azufre 150 gr.200 L-1" ~ "T4"
+    , tratamiento %in% "Suero de leche 10%" ~ "T5"
+    , tratamiento %in% "Suero de leche 30%" ~ "T6"
+  ), .before = tratamiento) %>% 
+  mutate(across(1:variedad, ~ as.factor(.))) 
 
 str(germination)
 
 plantula <- gs %>% 
   range_read("plantula") %>% 
   rename_with(~ tolower(.)) %>% 
+  mutate(variedad = case_when(
+    variedad %in% c("criollo") ~ "Creole"
+    , variedad %in% c("hibrido") ~ "Hybrid"
+  )) %>% 
   mutate(across(1:variedad, ~ as.factor(.)))
 
 str(plantula)
+```
+
+# Tratamientos
+
+```{r}
+imbibition %>% 
+  group_by(trat, tratamiento) %>% 
+  summarise(n = n()) %>% 
+  select(!n)
 ```
 
 # Data summary
@@ -99,6 +131,30 @@ sm <- plantula %>%
 sm
 ```
 
+```{r}
+#| echo: false
+
+anova_table <- function(model) {
+  
+  model %>%
+    rownames_to_column("Factor") %>% 
+    mutate(Sig = case_when(
+      `Pr(>F)` <= 0.001  ~ "***"
+      , `Pr(>F)` <= 0.01  ~ "**"
+      , `Pr(>F)` <= 0.05  ~ "*"
+      , `Pr(>F)` > 0.05 ~ "ns"
+    )) %>% 
+    mutate(across(everything(), as.factor)) %>%
+    tibble() %>% 
+    tibble::add_row(Factor = "---") %>% 
+    tibble::add_row(Factor = "Significance:"
+                    , `Sum Sq` = "0.001 ***"
+                    , `Mean Sq` = "0.01 **"
+                    , `F value` = "0.05 *"
+                    )
+}
+```
+
 # Objetivos
 
 (a) Evaluar los parámetros de germinación de dos variedades de semillas de maiz morado usando bioestimulante orgánico. 
@@ -119,9 +175,9 @@ sm
 trait <- "peso"
 fb <- imbibition
 
-lmm <- paste({{trait}}, "~ 1 + (1|bloque) + tratamiento*variedad +  (1 + tiempo|trat)") %>% as.formula()
+lmm <- paste({{trait}}, "~ 1 + (1|bloque) + trat*variedad +  (1 + tiempo|tratamiento)") %>% as.formula()
 
-lmd <- paste({{trait}}, "~ bloque + tiempo +  tratamiento*variedad") %>% as.formula()
+lmd <- paste({{trait}}, "~ bloque + tiempo +  trat*variedad") %>% as.formula()
 
 rmout <- fb %>% 
   remove_outliers(formula = lmm
@@ -129,14 +185,14 @@ rmout <- fb %>%
 
 rmout$diagplot
 
-rmout$outliers
+rmout$outliers %>% kable()
 
 model <- rmout$data$clean %>% 
   aov(formula = lmd, .)
 
 anova(model)
 
-mc <- emmeans(model, ~ tiempo|variedad|tratamiento) %>%
+mc <- emmeans(model, ~ tiempo|variedad|trat) %>%
   cld(Letters = letters, reversed = T) %>%
   mutate(across(.group, trimws)) %>% 
   rename(group = ".group")
@@ -151,11 +207,12 @@ p1a <- mc %>%
            , sig = "group"
            , error = "SE"
            , color = T
-           , ylab = "Peso (g)"
-           , xlab = "Tiempo (h)"
+           , ylab = "Seed weight (g)"
+           , xlab = "Time (h)"
+           , glab = "Variety"
            , ylimits = c(0, 1, 0.2)
            ) + 
-  facet_wrap(. ~ tratamiento, ncol = 2)
+  facet_wrap(. ~ trat, ncol = 2)
 
 p1a
 ```
@@ -166,9 +223,9 @@ p1a
 trait <- "pg"
 fb <- germination
 
-lmm <- paste({{trait}}, "~ 1 + (1|bloque) + tratamiento*variedad") %>% as.formula()
+lmm <- paste({{trait}}, "~ 1 + (1|bloque) + trat*variedad") %>% as.formula()
 
-lmd <- paste({{trait}}, "~ bloque + tratamiento*variedad") %>% as.formula()
+lmd <- paste({{trait}}, "~ bloque + trat*variedad") %>% as.formula()
 
 rmout <- fb %>% 
   remove_outliers(formula = lmm
@@ -176,14 +233,14 @@ rmout <- fb %>%
 
 rmout$diagplot
 
-rmout$outliers
+rmout$outliers %>% kable()
 
 model <- rmout$data$clean %>% 
   aov(formula = lmd, .)
 
 anova(model)
 
-mc <- emmeans(model, ~ variedad|tratamiento) %>%
+mc <- emmeans(model, ~ variedad|trat) %>%
   cld(Letters = letters, reversed = T) %>%
   mutate(across(.group, trimws)) %>% 
   rename(group = ".group")
@@ -192,14 +249,15 @@ mc %>% kable()
 
 p1b <- mc %>% 
   plot_smr(type = "bar"
-           , x = "tratamiento"
+           , x = "trat"
            , y = "emmean"
            , group = "variedad"
            , sig = "group"
            , error = "SE"
            , color = T
-           , ylab = "Germinación ('%')"
-           , xlab = "Tratamientos"
+           , ylab = "Germination ('%')"
+           , xlab = "Treatments"
+           , glab = "Variety"
            , ylimits = c(0, 120, 20)
            ) 
 
@@ -212,9 +270,9 @@ p1b
 trait <- "vg"
 fb <- germination
 
-lmm <- paste({{trait}}, "~ 1 + (1|bloque) + tratamiento*variedad") %>% as.formula()
+lmm <- paste({{trait}}, "~ 1 + (1|bloque) + trat*variedad") %>% as.formula()
 
-lmd <- paste({{trait}}, "~ bloque + tratamiento*variedad") %>% as.formula()
+lmd <- paste({{trait}}, "~ bloque + trat*variedad") %>% as.formula()
 
 rmout <- fb %>% 
   remove_outliers(formula = lmm
@@ -222,14 +280,14 @@ rmout <- fb %>%
 
 rmout$diagplot
 
-rmout$outliers
+rmout$outliers %>% kable()
 
 model <- rmout$data$clean %>% 
   aov(formula = lmd, .)
 
 anova(model)
 
-mc <- emmeans(model, ~ variedad|tratamiento) %>%
+mc <- emmeans(model, ~ variedad|trat) %>%
   cld(Letters = letters, reversed = T) %>%
   mutate(across(.group, trimws)) %>% 
   rename(group = ".group")
@@ -238,14 +296,15 @@ mc %>% kable()
 
 p1c <- mc %>% 
   plot_smr(type = "bar"
-           , x = "tratamiento"
+           , x = "trat"
            , y = "emmean"
            , group = "variedad"
            , sig = "group"
            , error = "SE"
            , color = T
-           , ylab = "Velocidad de germinación (días)"
-           , xlab = "Tratamientos"
+           , ylab = "Germination speed (days)"
+           , xlab = "Treatments"
+           , glab = "Variety"
            , ylimits = c(0, 6, 1)
            ) 
 
@@ -258,9 +317,9 @@ p1c
 trait <- "ig"
 fb <- germination
 
-lmm <- paste({{trait}}, "~ 1 + (1|bloque) + tratamiento*variedad") %>% as.formula()
+lmm <- paste({{trait}}, "~ 1 + (1|bloque) + trat*variedad") %>% as.formula()
 
-lmd <- paste({{trait}}, "~ bloque + tratamiento*variedad") %>% as.formula()
+lmd <- paste({{trait}}, "~ bloque + trat*variedad") %>% as.formula()
 
 rmout <- fb %>% 
   remove_outliers(formula = lmm
@@ -268,14 +327,14 @@ rmout <- fb %>%
 
 rmout$diagplot
 
-rmout$outliers
+rmout$outliers %>% kable()
 
 model <- rmout$data$clean %>% 
   aov(formula = lmd, .)
 
 anova(model)
 
-mc <- emmeans(model, ~ variedad|tratamiento) %>%
+mc <- emmeans(model, ~ variedad|trat) %>%
   cld(Letters = letters, reversed = T) %>%
   mutate(across(.group, trimws)) %>% 
   rename(group = ".group")
@@ -284,14 +343,15 @@ mc %>% kable()
 
 p1d <- mc %>% 
   plot_smr(type = "bar"
-           , x = "tratamiento"
+           , x = "trat"
            , y = "emmean"
            , group = "variedad"
            , sig = "group"
            , error = "SE"
            , color = T
-           , ylab = "Indice de germinación"
-           , xlab = "Tratamientos"
+           , ylab = "Germination Index"
+           , xlab = "Treatments"
+           , glab = "Variety"
            , ylimits = c(0, 5, 1)
            ) 
 
@@ -321,17 +381,182 @@ p1il <- list(legend, p1i) %>%
   plot_grid(plotlist = ., ncol = 1, align = 'v', rel_heights = c(0.05, 1))
 
 
-list(p1a, p1il) %>% 
-  plot_grid(plotlist = ., ncol = 2, rel_widths = c(1.2, 1.8), labels = c("a")) %>% 
+plot <- list(p1a, p1il) %>% 
+  plot_grid(plotlist = .
+            , ncol = 2
+            , rel_widths = c(1.5, 1)
+            , labels = c("a")
+            , label_y = 0.96
+            )  
+  
+plot %>% 
   ggsave2(plot = ., "files/Fig-1.jpg"
          , units = "cm"
-         , width = 40
+         , width = 30
+         , height = 25
+         )
+
+plot %>% 
+  ggsave2(plot = ., "files/Fig-1.eps"
+         , units = "cm"
+         , width = 30
          , height = 25
          )
 
 knitr::include_graphics("files/Fig-1.jpg")
 ```
 
+## Objetivo Específico 2
 
+> Identificar el mejor tratamiento que influye positivamente en el crecimiento y desarrollo de plantulas en el cultivo de Maíz morado.
 
+```{r}
+#| results: asis
+
+fb <- plantula
+
+rsl <- 4:length(fb) %>% map(\(x) {
+  
+trait <- names(fb)[x]
+
+cat("\n### ", trait)
+
+lmm <- paste({{trait}}, "~ 1 + (1|trat) + trat*variedad") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ trat*variedad") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+cat("\n#### ",  "Diagnostico")
+
+rmout$diagplot %>% print()
+
+cat("\n#### ", "Outliers")
+
+rmout$outliers  %>% kable() %>% print()
+
+cat("\n#### ", "ANOVA")
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model) %>% anova_table %>% kable() %>% print()
+
+cat("\n#### ", "Mean comparison")
+
+mc <- emmeans(model, ~ variedad|trat) %>%
+  cld(Letters = letters, reversed = T) %>%
+  mutate(across(.group, trimws)) %>% 
+  rename(group = ".group") %>% 
+  rename({{trait}} := "emmean")
+
+mc %>% kable() %>% print()
+
+plot <- mc %>% 
+  plot_smr(x = "trat"
+           , y = trait
+           , group = "variedad"
+           , sig = "group"
+           , error = "SE"
+           , color = T
+           , xlab = "Treatments"
+           , glab = "Variety"
+           )
+
+plot
+
+list(mc = mc, plot = plot)
+  
+})
+```
+
+### Figure 2
+
+```{r}
+fig <- 1:length(rsl) %>% map(\(x) { rsl[[x]]$plot }) %>% 
+    plot_grid(plotlist = .
+              , ncol = 3
+              , labels = "auto"
+              ) 
+
+fig %>% 
+  ggsave2(plot = .
+          , "files/Fig-2.jpg"
+          , units = "cm"
+          , width = 30
+          , height = 40
+         )
+
+include_graphics("files/Fig-2.jpg")
+```
+
+### PCA
+
+```{r}
+blues <- 1:length(rsl) %>% map(\(x) { 
+  
+  rsl[[x]]$mc %>% 
+    select(1:3)
+  
+  }) %>% 
+  Reduce(function(...) merge(..., all = TRUE), .) 
+
+blues %>% str()
+```
+
+```{r}
+pca <- blues %>% 
+  select(!c(nhp_hoja)) %>% 
+  unite("treat", c(trat, variedad), remove = F, sep = "-") %>% 
+  column_to_rownames("treat") %>% 
+  PCA(scale.unit = T, quali.sup = c(1:2), graph = F)
+
+summary(pca, nbelements = Inf, nb.dec = 2)
+```
+
+### Figure 3
+
+```{r}
+var <- pca %>% 
+  plot.PCA(choix = "var"
+           , cex=0.8 
+           )
+
+ind <- pca %>% 
+  plot.PCA(choix = "ind", habillage = 2
+           , label = c("ind")
+           , invisible = "quali"
+           ) +
+  labs(colour = "Treatments") +
+  theme(legend.position = "bottom"
+        , legend.direction = "horizontal")
+  
+
+fig <- list(var, ind) %>% 
+    plot_grid(plotlist = .
+              , ncol = 2
+              , labels = "auto"
+              , rel_widths = c(1.5, 2)
+              ) 
+
+fig %>% 
+  ggsave2(plot = .
+          , "files/Fig-3.jpg"
+          , units = "cm"
+          , width = 30
+          , height = 12
+         )
+
+fig %>% 
+  ggsave2(plot = .
+          , "files/Fig-3.eps"
+          , units = "cm"
+          , width = 30
+          , height = 12
+         )
+
+include_graphics("files/Fig-3.jpg")
+```
 
