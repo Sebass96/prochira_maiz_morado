@@ -213,7 +213,8 @@ p1a <- mc %>%
            , ylimits = c(0.4, 1, 0.2)
            ) + 
   facet_wrap(. ~ variedad, ncol = 2) +
-  theme(legend.position = "right")
+  theme(legend.position = "top") +
+  guides(colour = guide_legend(nrow = 1))
 
 p1a
 ```
@@ -384,24 +385,23 @@ p1il <- list(legend, p1i) %>%
 
 plot <- list(p1a, p1il) %>% 
   plot_grid(plotlist = .
-            , ncol = 2
-            , rel_widths = c(3, 1)
+            , ncol = 1
             , labels = c("a")
-            , label_y = 0.96
+            , rel_heights = c(0.6, 1)
             )  
   
 plot %>% 
   ggsave2(plot = ., "files/Fig-1.jpg"
          , units = "cm"
-         , width = 30
-         , height = 25
+         , width = 24
+         , height = 29
          )
 
 plot %>% 
   ggsave2(plot = ., "files/Fig-1.eps"
          , units = "cm"
-         , width = 30
-         , height = 25
+         , width = 24
+         , height = 29
          )
 
 knitr::include_graphics("files/Fig-1.jpg")
@@ -414,17 +414,18 @@ knitr::include_graphics("files/Fig-1.jpg")
 ```{r}
 #| results: asis
 
-fb <- plantula
+fb <- plantula %>% 
+  select(!contains("fres"))
 
-rsl <- 4:length(fb) %>% map(\(x) {
+rsl <- 5:length(fb) %>% map(\(x) {
   
 trait <- names(fb)[x]
 
 cat("\n### ", trait)
 
-lmm <- paste({{trait}}, "~ 1 + (1|trat) + trat*variedad") %>% as.formula()
+lmm <- paste({{trait}}, "~ 1 + (1|bloque) + trat*variedad") %>% as.formula()
 
-lmd <- paste({{trait}}, "~ trat*variedad") %>% as.formula()
+lmd <- paste({{trait}}, "~ bloque + trat*variedad") %>% as.formula()
 
 rmout <- fb %>% 
   remove_outliers(formula = lmm
@@ -476,21 +477,93 @@ list(mc = mc, plot = plot)
 ### Figure 2
 
 ```{r}
-fig <- 1:length(rsl) %>% map(\(x) { rsl[[x]]$plot }) %>% 
-    plot_grid(plotlist = .
-              , ncol = 3
-              , labels = "auto"
+
+legend <- cowplot::get_plot_component(rsl[[1]]$plot, 'guide-box-top', return_all = TRUE)
+
+fig <- list(
+  rsl[[1]]$plot + labs(x = NULL, y = "Root length (cm)") + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 20), n.breaks = 5) +
+    theme(legend.position="none"
+          , axis.title.x=element_blank()
+          , axis.text.x=element_blank()
+          , axis.ticks.x=element_blank())
+  
+  , rsl[[2]]$plot + labs(x = NULL, y = "Root thickness (mm)") + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 2), n.breaks = 5) +
+    theme(legend.position="none"
+          , axis.title.x=element_blank()
+          , axis.text.x=element_blank()
+          , axis.ticks.x=element_blank())
+  
+  , rsl[[3]]$plot  + labs(x = NULL, y = "Root number") + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 20), n.breaks = 5) +
+    theme(legend.position="none"
+          , axis.title.x=element_blank()
+          , axis.text.x=element_blank()
+          , axis.ticks.x=element_blank())
+  
+  , rsl[[4]]$plot + labs(y = "Root dry weight (g)") + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 2), n.breaks = 5) +
+    theme(legend.position="none") 
+  ) %>% 
+  plot_grid(plotlist = .
+            , ncol = 1
+            , labels = "auto"
               ) 
 
-fig %>% 
+plot <- list(legend, fig) %>% 
+   plot_grid(plotlist = .
+            , ncol = 1
+            , rel_heights = c(0.05, 1)
+              ) 
+
+plot %>% 
   ggsave2(plot = .
           , "files/Fig-2.jpg"
           , units = "cm"
-          , width = 30
-          , height = 40
+          , width = 12
+          , height = 24
+         )
+
+plot %>% 
+  ggsave2(plot = .
+          , "files/Fig-2.eps"
+          , units = "cm"
+          , width = 12
+          , height = 24
          )
 
 include_graphics("files/Fig-2.jpg")
+```
+
+### Table
+
+```{r}
+tab <- 5:length(rsl) %>% map(\(x) { 
+  
+  trait <- names(rsl[[x]]$mc)[[3]]
+  
+  rsl[[x]]$mc %>% 
+    mutate(across(where(is.numeric), ~ round(., 2))) %>% 
+    unite({{trait}}, c({{trait}}, group), sep = " ") %>% 
+    select(1:3)
+  
+  }) %>% 
+  Reduce(function(...) merge(..., all = TRUE), .) %>% 
+  rename(Variety = "variedad" 
+         , Treatment = trat
+         , "Plant height (cm)" = "alt_planta"
+         , "Stem thickness (mm)" = "gsr_tallo"
+         , "Leaves number" = "nhp_hoja"
+         , "Leaf length (cm)" = "larg_hoja" 
+         , "Leaf thickness (mm)" = "grs_hoja"
+         , "Leaf width (mm)" = "anch_hoja"
+         , "Shoot Dry weight (g)" = "peso_seco_brote"
+         )
+
+tab %>% kable()
+
+tab %>% sheet_write(data = ., gs, "table")
 ```
 
 ### PCA
@@ -502,19 +575,37 @@ blues <- 1:length(rsl) %>% map(\(x) {
     select(1:3)
   
   }) %>% 
-  Reduce(function(...) merge(..., all = TRUE), .) 
-
+  Reduce(function(...) merge(..., all = TRUE), .) %>% 
+    rename(Variety = "variedad" 
+         , Treatment = trat
+         , "Plant height (cm)" = "alt_planta"
+         , "Stem thickness (mm)" = "gsr_tallo"
+         , "Leaves number" = "nhp_hoja"
+         , "Leaf length (cm)" = "larg_hoja" 
+         , "Leaf thickness (mm)" = "grs_hoja"
+         , "Leaf width (mm)" = "anch_hoja"
+         , "Shoot Dry weight (g)" = "peso_seco_brote"
+         #>
+         , "Root length (cm)" = "raiz_lgtd"
+         , "Root thickness (mm)" = "gsr_raiz"
+         , "Root number" = "num_raiz"
+         , "Root Dry weight (g)" = peso_seco_raiz
+         )
+  
 blues %>% str()
 ```
 
 ```{r}
 pca <- blues %>% 
-  select(!c(nhp_hoja)) %>% 
-  unite("treat", c(trat, variedad), remove = F, sep = "-") %>% 
+  select(!c("Leaves number")) %>% 
+  unite("treat", c(Treatment, Variety), remove = F, sep = "-") %>% 
   column_to_rownames("treat") %>% 
   PCA(scale.unit = T, quali.sup = c(1:2), graph = F)
 
 summary(pca, nbelements = Inf, nb.dec = 2)
+pcainfo <- factoextra::get_pca_var(pca)
+pcainfo$cor
+pcainfo$contrib
 ```
 
 ### Figure 3
@@ -522,7 +613,7 @@ summary(pca, nbelements = Inf, nb.dec = 2)
 ```{r}
 var <- pca %>% 
   plot.PCA(choix = "var"
-           , cex=0.8 
+           , cex = 0.7 
            )
 
 ind <- pca %>% 
@@ -532,7 +623,8 @@ ind <- pca %>%
            ) +
   labs(colour = "Treatments") +
   theme(legend.position = "bottom"
-        , legend.direction = "horizontal")
+        , legend.direction = "horizontal") +
+  guides(colour = guide_legend(nrow = 1))
   
 
 fig <- list(var, ind) %>% 
