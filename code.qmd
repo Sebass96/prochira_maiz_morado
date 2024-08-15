@@ -559,7 +559,8 @@ tab <- 5:length(rsl) %>% map(\(x) {
          , "Leaf thickness (mm)" = "grs_hoja"
          , "Leaf width (mm)" = "anch_hoja"
          , "Shoot Dry weight (g)" = "peso_seco_brote"
-         )
+         ) %>% 
+  arrange(Treatment)
 
 tab %>% kable()
 
