@@ -101,6 +101,19 @@ plantula <- gs %>%
   mutate(across(1:variedad, ~ as.factor(.)))
 
 str(plantula)
+
+semilla <- gs %>% 
+  range_read("semilla") %>% 
+  rename_with(~ tolower(.)) %>% 
+  mutate(variedad = case_when(
+    variedad %in% c("Criollo") ~ "Creole"
+    , variedad %in% c("Hibrido") ~ "Hybrid"
+  )) %>% 
+  mutate(relacion = round((largo/ancho),2)) %>% 
+  dplyr::select(variedad:ancho, relacion, everything()) %>% 
+  mutate_at("variedad",as.factor)
+
+str(semilla)
 ```
 
 # Tratamientos
@@ -132,6 +145,12 @@ sm <- plantula %>%
   summarise(across(where(is.numeric), ~ sum(!is.na(.))))
 
 sm
+
+sm <- semilla %>% 
+  group_by(variedad) %>% 
+  summarise(across(where(is.numeric), ~ sum(!is.na(.))))
+
+sm
 ```
 
 ```{r}
@@ -156,6 +175,82 @@ anova_table <- function(model) {
                     , `F value` = "0.05 *"
                     )
 }
+```
+
+# Seed characterization
+
+```{r}
+#| results: asis
+
+fb <- semilla
+
+rsl <- 2:length(fb) %>% map(\(x) {
+  
+trait <- names(fb)[x]
+
+cat("\n### ", trait)
+
+lmm <- paste({{trait}}, "~ 1 + (1|variedad)") %>% as.formula()
+
+lmd <- paste({{trait}}, "~ variedad") %>% as.formula()
+
+rmout <- fb %>% 
+  remove_outliers(formula = lmm
+                  , drop_na = T, plot_diag = T)
+
+cat("\n#### ",  "Diagnostico")
+
+rmout$diagplot %>% print()
+
+cat("\n#### ", "Outliers")
+
+rmout$outliers  %>% kable() %>% print()
+
+cat("\n#### ", "ANOVA")
+
+model <- rmout$data$clean %>% 
+  aov(formula = lmd, .)
+
+anova(model) %>% anova_table %>% kable() %>% print()
+
+cat("\n#### ", "Mean comparison")
+
+mc <- emmeans(model, ~ variedad) %>%
+  cld(Letters = letters, reversed = T)
+
+mc %>% kable() %>% print()
+
+mc %>% 
+  mutate(var = trait)
+  
+})
+```
+
+## Table 1
+
+```{r}
+
+tab <- rsl %>% 
+  bind_rows() %>% 
+  mutate(across(c(emmean, SE), ~ round(.,2))) %>% 
+  unite("ref", c(emmean, SE), remove = F, sep = "±") %>% 
+  mutate(across(c(".group"), ~ trimws(.))) %>% 
+  unite("ref", c(ref, ".group"), remove = F, sep = " ") %>% 
+  select(variedad, ref, var) %>% 
+  pivot_wider(names_from = var, values_from = ref) %>% 
+  rename(
+    Variety = variedad
+    , "Seed Length (mm)" = largo
+    , "Seed Width (mm)" = ancho
+    , "Length/Width" = relacion
+    , "Seed Thickness (mm)" = grosor
+    , "Seed Weight (g)" = peso
+  ) %>% 
+  arrange(.,Variety)
+
+tab %>% kable(align = 'c')
+
+tab %>% sheet_write(data = ., gs, "seeds")
 ```
 
 # Objetivos
@@ -376,7 +471,7 @@ p1i <- list(p1b + labs(x = NULL) + theme(legend.position="none"
                                         , axis.title.x=element_blank()
                                         , axis.text.x=element_blank()
                                         , axis.ticks.x=element_blank())
-           , p1d + labs(x = NULL) + theme(legend.position="none")
+           , p1d + theme(legend.position="none")
            ) %>% 
   plot_grid(plotlist = ., ncol = 1
             , labels = c("b", "c", "d")
@@ -539,7 +634,7 @@ plot %>%
 include_graphics("files/Fig-2.jpg")
 ```
 
-### Table
+### Table 2
 
 ```{r}
 tab <- 5:length(rsl) %>% map(\(x) { 
