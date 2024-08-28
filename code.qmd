@@ -1,5 +1,7 @@
 ---
-title: "ESTIMULANTES EN LA GERMINACIÓN Y BIOMETRÍA INICIAL DE DOS VARIEDADES DE MAÍZ MORADO (_Zea mays_ L.)"
+title: "Effect of stimulants on germination and early development of two purple maize (_Zea mays_ L.) varieties"
+subtitle: "Plants - MDPI"
+author: "Sandy Vilchez-Navarro; Arturo Morales-Pizarro; Henry Morocho-Romero; Ricardo Peña-Castillo; Sebastian Casas-Niño; Gabriela Cárdenas-Huamán; Nery Tirabante-Terrones; Esdwin-Oberti Nuñez-Ticliahuanca; Leslie Diana Velarde-Apaza; Max Ramirez-Rojas; Juancarlos Cruz Luis; Flavio Lozano-Isla"
 format:
   html:
     toc: true
@@ -15,9 +17,9 @@ execute:
   echo: true
 ---
 
-# Setup
+# Project Setup
 
-Instalar version en desarrollo.
+Install *inti* development version.
 
 ```{r}
 #| eval: false
@@ -27,7 +29,6 @@ if (!require("remotes"))
 remotes::install_github("flavjack/inti")
 ```
 
-
 ```{r}
 #| label:  setup
 
@@ -36,22 +37,15 @@ library(corrplot)
 library(multcomp)
 library(factoextra)
 library(corrplot)
-library(png)
 source('https://inkaverse.com/setup.r')
 
 cat("Project: ", getwd())
 session_info()
 ```
 
-# Refrencias
-
-- (PCA) https://www.r-bloggers.com/2017/07/pca-course-using-factominer/
-- (PCA) https://www.youtube.com/watch?v=Uhw-1NilmAk&ab_channel=Fran%C3%A7oisHusson
-- (HCPC) https://youtu.be/EJqYTDTJJug
-
 # Import data
 
-> https://docs.google.com/spreadsheets/d/1E_l9uV3MT1qlJuVtWK66NgevqPH6fVJCekqNhS_VGm0/edit?gid=1893553741#gid=1893553741
+Data was imported from the field book containing evaluations of germination and seedling growth parameters for two varieties of purple maize. The evaluations were conducted in two phases: laboratory and nursery.
 
 ```{r}
 url <- "https://docs.google.com/spreadsheets/d/1E_l9uV3MT1qlJuVtWK66NgevqPH6fVJCekqNhS_VGm0/edit?gid=1893553741#gid=1893553741"
@@ -116,7 +110,19 @@ semilla <- gs %>%
 str(semilla)
 ```
 
-# Tratamientos
+```{r}
+imbibition %>% kable(caption = "Evaluation of the imbibition rate")
+
+germination %>% kable(caption = "Evaluation of germination percentage")
+
+plantula %>% kable(caption = "Evaluation of seedling morphometry")
+
+semilla %>% kable(caption = "Seed characterization")
+```
+
+# Pregerminative treatments
+
+Pregerminative treatments used on purple maize seeds.
 
 ```{r}
 imbibition %>% 
@@ -126,6 +132,8 @@ imbibition %>%
 ```
 
 # Data summary
+
+Summary of the number of data points recorded for each treatment and evaluated variable.
 
 ```{r}
 sm <- imbibition %>% 
@@ -179,6 +187,8 @@ anova_table <- function(model) {
 
 # Seed characterization
 
+Characterization of purple maize seeds to determine the imbibition process and germination.
+
 ```{r}
 #| results: asis
 
@@ -228,6 +238,8 @@ mc %>%
 
 ## Table 1
 
+Seed characterization
+
 ```{r}
 
 tab <- rsl %>% 
@@ -253,21 +265,15 @@ tab %>% kable(align = 'c')
 tab %>% sheet_write(data = ., gs, "seeds")
 ```
 
-# Objetivos
+# Objetives
 
-(a) Evaluar los parámetros de germinación de dos variedades de semillas de maiz morado usando bioestimulante orgánico. 
+Evaluate the effectiveness of organic and inorganic biostimulants on the germination and seedling development of two varieties of purple maize.
 
-(b) Identificar el mejor tratamiento que influye positivamente en el crecimiento y desarrollo de plantulas en el cultivo de Maíz morado.
+## Specific Objective 1
 
+Evaluate the germination parameters of a hybrid variety compared to a creole of purple maize seeds using organic biostimulants.
 
-## Objetivo Específico 1
-
-> Evaluar los parámetros de germinación de dos variedades de semillas de maiz morado usando bioestimulante orgánico. 
-
-- Imbibiciación, % germinación, velocidad e IG
-
-
-### Imbibición
+### Imbibition
 
 ```{r}
 trait <- "peso"
@@ -317,7 +323,7 @@ p1a <- mc %>%
 p1a
 ```
 
-### Porcentaje de Germination
+### Germination percentage
 
 ```{r}
 trait <- "pg"
@@ -364,7 +370,7 @@ p1b <- mc %>%
 p1b
 ```
 
-### Velocidad de germinación
+### Germination speed
 
 ```{r}
 trait <- "vg"
@@ -411,7 +417,7 @@ p1c <- mc %>%
 p1c
 ```
 
-### Indice de germinación
+### Germination percentage
 
 ```{r}
 trait <- "ig"
@@ -458,7 +464,9 @@ p1d <- mc %>%
 p1d
 ```
 
-## Figura 1
+### Figure 1
+
+Univariate analysis of the variables involved in the imbibition process of purple maize seeds.
 
 ```{r}
 legend <- cowplot::get_plot_component(p1b, 'guide-box-top', return_all = TRUE)
@@ -489,25 +497,27 @@ plot <- list(p1a, p1il) %>%
             )  
   
 plot %>% 
-  ggsave2(plot = ., "files/Fig-1.jpg"
+  ggsave2(plot = ., "plants/Fig-1.jpg"
          , units = "cm"
          , width = 24
          , height = 29
          )
 
 plot %>% 
-  ggsave2(plot = ., "files/Fig-1.eps"
+  ggsave2(plot = ., "plants/Fig-1.eps"
          , units = "cm"
          , width = 24
          , height = 29
          )
 
-knitr::include_graphics("files/Fig-1.jpg")
+knitr::include_graphics("plants/Fig-1.jpg")
 ```
 
-## Objetivo Específico 2
+## Specific Objective 2
 
-> Identificar el mejor tratamiento que influye positivamente en el crecimiento y desarrollo de plantulas en el cultivo de Maíz morado.
+Identify the best organic biostimulant treatment that positively influences seedling growth and development in purple maize cultivation.
+
+### Biometric characteristics analysis
 
 ```{r}
 #| results: asis
@@ -574,6 +584,8 @@ list(mc = mc, plot = plot)
 
 ### Figure 2
 
+Univariate analysis of the variables that determine the root biometrics of purple maize.
+
 ```{r}
 
 legend <- cowplot::get_plot_component(rsl[[1]]$plot, 'guide-box-top', return_all = TRUE)
@@ -617,7 +629,7 @@ plot <- list(legend, fig) %>%
 
 plot %>% 
   ggsave2(plot = .
-          , "files/Fig-2.jpg"
+          , "plants/Fig-2.jpg"
           , units = "cm"
           , width = 12
           , height = 24
@@ -625,16 +637,18 @@ plot %>%
 
 plot %>% 
   ggsave2(plot = .
-          , "files/Fig-2.eps"
+          , "plants/Fig-2.eps"
           , units = "cm"
           , width = 12
           , height = 24
          )
 
-include_graphics("files/Fig-2.jpg")
+include_graphics("plants/Fig-2.jpg")
 ```
 
 ### Table 2
+
+Univariate analysis of the variables that determine the aerial biometrics of purple maize.
 
 ```{r}
 tab <- 5:length(rsl) %>% map(\(x) { 
@@ -665,7 +679,9 @@ tab %>% kable()
 tab %>% sheet_write(data = ., gs, "table")
 ```
 
-### PCA
+### Multivariate analysis
+
+Principal Component Analysis (PCA) of the biometric characteristics of purple maize seedlings.
 
 ```{r}
 blues <- 1:length(rsl) %>% map(\(x) { 
@@ -709,6 +725,8 @@ pcainfo$contrib
 
 ### Figure 3
 
+Principal Component Analysis (PCA).
+
 ```{r}
 var <- pca %>% 
   plot.PCA(choix = "var"
@@ -735,7 +753,7 @@ fig <- list(var, ind) %>%
 
 fig %>% 
   ggsave2(plot = .
-          , "files/Fig-3.jpg"
+          , "plants/Fig-3.jpg"
           , units = "cm"
           , width = 30
           , height = 12
@@ -743,33 +761,23 @@ fig %>%
 
 fig %>% 
   ggsave2(plot = .
-          , "files/Fig-3.eps"
+          , "plants/Fig-3.eps"
           , units = "cm"
           , width = 30
           , height = 12
          )
 
-include_graphics("files/Fig-3.jpg")
+include_graphics("plants/Fig-3.jpg")
 ```
 
-### Principal components
+### Supplementary Figure 1
+
+Results of the contributions and correlation of the variables in the Principal Component Analysis (PCA).
 
 ```{r}
 var <- get_pca_var(pca)
 
-tmp <- tempfile(fileext = ".png")
-ppi <- 300
-png(tmp, width=8*ppi, height=12*ppi, res=ppi)
-corrplot(var$cor, 
-         method="number",
-         tl.col="black", 
-         tl.srt=45,)
-graphics.off()
-
-pt1 <- png::readPNG(tmp) %>%
-  grid::rasterGrob(interpolate = TRUE)
-
-pt2 <- fviz_eig(pca, 
+pt1 <- fviz_eig(pca, 
                 addlabels=TRUE,
                 hjust = 0.05,
                 barfill="white",
@@ -781,7 +789,7 @@ pt2 <- fviz_eig(pca,
     y = "Variance (%)") +
   theme_minimal()
 
-pt3 <- fviz_contrib(pca,
+pt2 <- fviz_contrib(pca,
                      choice = "var", 
                      axes = 1, 
                      top = 10,
@@ -791,7 +799,7 @@ pt3 <- fviz_contrib(pca,
   ylim(0, 20) + 
   labs(title = "Dim 1 - variables contribution") 
 
-pt4 <- fviz_contrib(pca,
+pt3 <- fviz_contrib(pca,
                      choice = "var", 
                      axes = 2, 
                      top = 10,
@@ -801,19 +809,23 @@ pt4 <- fviz_contrib(pca,
   ylim(0, 25) + 
   labs(title = "Dim 2 - variables contribution") 
 
-plot <- ggdraw(xlim = c(0.0, 1.0), ylim = c(0, 1.0))+
-  draw_plot(pt1,  width = 0.4, height = 0.99, x = 0.62, y = 0.0) +  
-  draw_plot(pt2,  width = 0.6, height = 0.34, x = 0.03, y = 0.66) +
-  draw_plot(pt3, width = 0.6, height = 0.34, x = 0.03, y = 0.33) + 
-  draw_plot(pt4, width = 0.6, height = 0.34, x = 0.03, y = 0.0) +
-        draw_plot_label(
-    label = c("a", "b", "c", "d"),
-    x = c(0.005, 0.005, 0.005, 0.65),
-    y = c(0.999, 0.67, 0.34, 0.999))
+pt4 <- ~ {
+  
+  corrplot(var$cor, 
+         method="number",
+         tl.col="black", 
+         tl.srt=45,)
+  
+}
 
-ggsave2(plot = plot, "files/FigS1.jpg", height = 25, width = 46, units = "cm")
+plot <- list(pt1, pt2, pt3) %>% 
+  plot_grid(plotlist = ., ncol = 1, labels = "auto") %>% 
+  list(., pt4) %>% 
+  plot_grid(plotlist = ., ncol = 2, labels = c("", "d"))
 
-ggsave2(plot = plot, "files/FigS1.eps", height = 25, width = 46, units = "cm")
+ggsave2(plot = plot, "plants/FigS1.jpg", height = 20, width = 30, units = "cm")
 
-knitr::include_graphics("files/FigS1.jpg")
+ggsave2(plot = plot, "plants/FigS1.eps", height = 20, width = 30, units = "cm")
+
+knitr::include_graphics("plants/FigS1.jpg")
 ```
