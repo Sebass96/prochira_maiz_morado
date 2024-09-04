@@ -1,5 +1,5 @@
 ---
-title: "Effect of stimulants on germination and early development of two purple maize (_Zea mays_ L.) varieties"
+title: "Effects of stimulants on the germination and early development of two purple maize (Zea mays L.) varieties"
 subtitle: "Plants - MDPI"
 author: "Sandy Vilchez-Navarro; Arturo Morales-Pizarro; Henry Morocho-Romero; Ricardo Peña-Castillo; Sebastian Casas-Niño; Gabriela Cárdenas-Huamán; Nery Tirabante-Terrones; Esdwin-Oberti Nuñez-Ticliahuanca;Ana Montañez-Artica; Leslie Diana Velarde-Apaza; Max Ramirez-Rojas; Juancarlos Cruz Luis; Flavio Lozano-Isla"
 format:
@@ -9,7 +9,7 @@ format:
     toc-expand: 4
     number-sections: true
     self-contained: true
-    output-file: "ESM_1"
+    output-file: "ESM_2"
 editor_options: 
   chunk_output_type: console
 execute: 
