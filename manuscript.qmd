@@ -10,7 +10,7 @@ format:
     toc-title: Indice
     section-numbers: true
     reference-doc: "files/style.docx"
-    output-file: "manuscript"
+    output-file: "_manuscript"
 editor_options: 
   chunk_output_type: console
 execute:
